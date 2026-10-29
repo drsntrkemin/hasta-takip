@@ -44,10 +44,30 @@ Kullanıcı bir metin veya tabak fotoğrafı paylaştığında:
 [1-2 cümlelik pratik geribildirim; sıvı veya protein uyarısı vb.]
 """
 
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    system_instruction=SYSTEM_PROMPT
-)
+# OTOMATİK MODEL BULUCU (404 Hatasını Önler)
+def get_best_model():
+    try:
+        # API'deki erişilebilir tüm modelleri listele
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # Önce flash varyantlarını ara
+        for m in models:
+            if "1.5-flash" in m: return m
+        for m in models:
+            if "2.0-flash" in m: return m
+        # Yoksa pro modelini kullan
+        for m in models:
+            if "pro" in m: return m
+        return models[0] if models else "models/gemini-1.5-flash"
+    except:
+        return "models/gemini-1.5-flash"
+
+secilen_model = get_best_model()
+
+try:
+    model = genai.GenerativeModel(model_name=secilen_model, system_instruction=SYSTEM_PROMPT)
+except Exception as e:
+    st.error(f"Model yüklenemedi: {e}")
+    st.stop()
 
 metin_girisi = st.text_area("Öğün Açıklaması (Örn: 1 kase mercimek çorbası, yarım dilim ekmek):", height=100)
 fotograf = st.file_uploader("Veya Tabak Fotoğrafı Çek / Yükle:", type=["jpg", "jpeg", "png"])
@@ -60,7 +80,8 @@ if st.button("Kaydet ve Hesapla"):
     if not metin_girisi and not fotograf:
         st.warning("Lütfen bir açıklama yazın veya fotoğraf yükleyin.")
     else:
-        with st.spinner("Öğün ve kalori hesaplanıyor..."):
+        # Hangi modeli seçtiğini ekranda gösterecek
+        with st.spinner(f"Hesaplanıyor... (Kullanılan AI: {secilen_model})"):
             try:
                 icerik = []
                 if fotograf:
