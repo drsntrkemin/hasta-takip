@@ -1,8 +1,7 @@
 import os
 import streamlit as st
 from PIL import Image
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from datetime import datetime
 import pandas as pd
 
@@ -10,7 +9,7 @@ st.set_page_config(page_title="Hasta Beslenme Takibi", page_icon="🍲", layout=
 
 st.markdown("""
     <style>
-    .stButton>button {width: 100%; border-radius: 12px; height: 3.2em; background-color: #1e7e34; color: white; font-weight: bold; font-size: 1.1em;}
+    .stButton>button {width: 100%; border-radius: 12px; height: 3em; background-color: #2e7d32; color: white; font-weight: bold;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -23,12 +22,13 @@ if not api_key:
     st.error("API anahtarı bulunamadı! Lütfen ayarlardan GEMINI_API_KEY ekleyin.")
     st.stop()
 
-client = genai.Client(api_key=api_key)
+# API Yapılandırması
+genai.configure(api_key=api_key)
 
 SYSTEM_PROMPT = """
-Sen yaşlı ve yatan hasta bakım süreçlerinde çalışan hasta bakıcılar için tasarlanmış bir "Beslenme ve Kalori Takip Asistanı"sın.
+Sen yaşlı ve yatan hasta bakım süreçlerinde hasta bakıcılar için tasarlanmış bir "Beslenme ve Kalori Takip Asistanı"sın.
 Kullanıcı bir metin veya tabak fotoğrafı paylaştığında:
-1. Besinleri ve porsiyonları dikkatle incele.
+1. Besinleri ve porsiyonları analiz et.
 2. Kalori, protein ve tahmini sıvı miktarını hesapla.
 3. Yanıtı her zaman şu net formatta ver:
 
@@ -41,8 +41,13 @@ Kullanıcı bir metin veya tabak fotoğrafı paylaştığında:
 - **Tahmini Sıvı:** ~[...] ml
 
 ### 💡 Bakıcı Notu
-[1-2 cümlelik pratik geribildirim; sıvı, çiğneme veya protein uyarısı vb.]
+[1-2 cümlelik pratik geribildirim; sıvı veya protein uyarısı vb.]
 """
+
+model = genai.GenerativeModel(
+    model_name="gemini-1.5-flash",
+    system_instruction=SYSTEM_PROMPT
+)
 
 metin_girisi = st.text_area("Öğün Açıklaması (Örn: 1 kase mercimek çorbası, yarım dilim ekmek):", height=100)
 fotograf = st.file_uploader("Veya Tabak Fotoğrafı Çek / Yükle:", type=["jpg", "jpeg", "png"])
@@ -55,7 +60,7 @@ if st.button("Kaydet ve Hesapla"):
     if not metin_girisi and not fotograf:
         st.warning("Lütfen bir açıklama yazın veya fotoğraf yükleyin.")
     else:
-        with st.spinner("Öğün ve besin değerleri hesaplanıyor..."):
+        with st.spinner("Öğün ve kalori hesaplanıyor..."):
             try:
                 icerik = []
                 if fotograf:
@@ -63,16 +68,9 @@ if st.button("Kaydet ve Hesapla"):
                 if metin_girisi:
                     icerik.append(metin_girisi)
 
-                response = client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    contents=icerik,
-                    config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,
-                        temperature=0.2
-                    )
-                )
+                response = model.generate_content(icerik)
 
-                st.success("Hesaplama Başarıyla Tamamlandı!")
+                st.success("Hesaplama Tamamlandı!")
                 st.markdown(response.text)
 
                 yeni_kayit = {
