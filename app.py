@@ -44,24 +44,8 @@ Kullanıcı bir metin veya tabak fotoğrafı paylaştığında:
 [1-2 cümlelik pratik geribildirim; sıvı veya protein uyarısı vb.]
 """
 
-# OTOMATİK MODEL BULUCU (404 Hatasını Önler)
-def get_best_model():
-    try:
-        # API'deki erişilebilir tüm modelleri listele
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        # Önce flash varyantlarını ara
-        for m in models:
-            if "1.5-flash" in m: return m
-        for m in models:
-            if "2.0-flash" in m: return m
-        # Yoksa pro modelini kullan
-        for m in models:
-            if "pro" in m: return m
-        return models[0] if models else "models/gemini-1.5-flash"
-    except:
-        return "models/gemini-1.5-flash"
-
-secilen_model = get_best_model()
+# Hata mesajında Google'ın doğrudan önerdiği güncel model adı
+secilen_model = "gemini-3.1-pro-preview"
 
 try:
     model = genai.GenerativeModel(model_name=secilen_model, system_instruction=SYSTEM_PROMPT)
@@ -80,8 +64,7 @@ if st.button("Kaydet ve Hesapla"):
     if not metin_girisi and not fotograf:
         st.warning("Lütfen bir açıklama yazın veya fotoğraf yükleyin.")
     else:
-        # Hangi modeli seçtiğini ekranda gösterecek
-        with st.spinner(f"Hesaplanıyor... (Kullanılan AI: {secilen_model})"):
+        with st.spinner("Hesaplanıyor..."):
             try:
                 icerik = []
                 if fotograf:
